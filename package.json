@@ -1,6 +1,6 @@
 {
   "name": "reactor-node",
-  "version": "0.0.7",
+  "version": "0.0.10",
   "description": "pattern reactor",
   "main": "Reactor.js",
   "scripts": {

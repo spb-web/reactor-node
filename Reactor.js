@@ -13,6 +13,7 @@ const {
 const delay = require('delay')
 const statusSymbol = Symbol('reactorStatus')
 const stepsSymbol = Symbol('reactorSteps')
+const lifeCycleSymbol = Symbol('reactorSteps')
 
 
 /**
@@ -35,108 +36,47 @@ const stepsSymbol = Symbol('reactorSteps')
 class Reactor extends EventEmitter {
   constructor(options={}) {
     super()
-    /** Таймаут мажду шагами таски */
+    /** @property {Integer} stepTimeout Таймаут мажду шагами таски */
     this.stepTimeout = 10
-    /** Шаги выполнения задачи */
+    /** @private {Array<Function>} Шаги выполнения задачи */
     this[stepsSymbol] = []
-    /** Статус таски */
-    this.initTime = new Date(),
-    this.startTime = null,
-    this.stopTime = null,
+    /** @private {String} Статус таски */
     this[statusSymbol] = TASK_STOPED
 
     this.on(TASK_CHANGE_STATUS_EVENT, status => {
       this[statusSymbol] = status
     })
 
-    this.on('error', err => {
-      this.log('error', 'event event: error' )
-      this.log('error', err)
-    })
-
     this.on(TASK_CHANGE_STATUS_EVENT, () => {
       if (this[statusSymbol] === TASK_STARTING) {
         setImmediate(() => {
           this.emit(TASK_CHANGE_STATUS_EVENT, TASK_PROCESSING)
-          this.__startLifeCycle()
+          this[lifeCycleSymbol]()
         })
       }
     })
   }
 
   /**
-   * @description
-   *  logger method
-   * @param {String} level
-   * @param {Mixed} args
+   * @param {Function} value
    */
-  log(level, ...args) {
-    console.log(`[${level}] `, ...args)
-  }
+  addStep(value) {
+    if (typeof value === 'function') {
+      const stepsCount = this[stepsSymbol].push(value)
 
-  /**
-   *
-   */
-  start() {
-    const prom = new Promise((resolve, reject) => {
-      this.emit(TASK_CHANGE_STATUS_EVENT, TASK_STARTING)
-      this.once(TASK_CHANGE_STATUS_EVENT, status => {
-        if (status === TASK_PROCESSING) {
-          this.startTime = new Date()
+      this.emit(TASK_ADDED_NEW_STEP_EVENT, stepsCount)
 
-          resolve()
-        } else {
-          reject(new Error(`Starting is calceled. next status is ${this[statusSymbol]}`))
-        }
-      })
-    })
+      if (this[statusSymbol] === TASK_STOPED) {
+        this.emit(TASK_CHANGE_STATUS_EVENT, TASK_STARTING)
 
-    return prom
-  }
-
-  stop() {
-    const prom = new Promise((resolve, reject) => {
-      this.emit(TASK_CHANGE_STATUS_EVENT, TASK_STOPING)
-      this.once(TASK_CHANGE_STATUS_EVENT, status => {
-        if (status === TASK_STOPED) {
-          this.stopTime = new Date()
-
-          resolve()
-        } else {
-          reject(new Error(`Stoping is calceled. next status is ${this[statusSymbol]}`))
-        }
-      })
-    })
-
-    return prom
-  }
-
-  addStep(func) {
-    const stepsCount = this[stepsSymbol].push(func)
-
-    this.emit(TASK_ADDED_NEW_STEP_EVENT, stepsCount)
-  }
-
-  exit(err=null) {
-    if (err === null || err === undefined) {
-      // Если ошибки нет - ждем завершения очереди шагов задачи
-      this.on(REACTOR_STEP_START_EVENT, status => {
-        if (this[stepsSymbol].length === 0) {
-          process.exit()
-        }
-      })
-
-      this.on(REACTOR_STEP_END_EVENT, status => {
-        if (this[stepsSymbol].length === 0) {
-          process.exit()
-        }
-      })
+        setImmediate(() => {
+          this[lifeCycleSymbol]()
+        })
+      }
     } else {
-      // При ошибке выходим из приложения сразу
-      process.exit()
+      throw new Error('Reactor.addStep: value is not a function')
     }
   }
-
 
   /**
    * @description
@@ -145,31 +85,33 @@ class Reactor extends EventEmitter {
    *
    * @return {Promise}
    */
-  __lifeCycle__() {
+  async [lifeCycleSymbol]() {
     this.emit(REACTOR_STEP_START_EVENT)
 
     switch (this[statusSymbol]) {
       // exec task step function
       case TASK_PROCESSING: {
+        if (this[stepsSymbol].length === 0) {
+          this.emit(TASK_CHANGE_STATUS_EVENT, TASK_STOPED)
+
+          return
+        }
+
         const stepFunction = this[stepsSymbol].shift()
 
-        if (typeof stepFunction === 'function') {
-          setImmediate(() => {
-            stepFunction().catch(err => {
-              this.emit(REACTOR_STEP_ERROR, err)
-            })
-          })
-
-          setTimeout(() => {
-            this.emit(REACTOR_STEP_END_EVENT)
-            this.__lifeCycle__()
-          }, this.stepTimeout)
-        } else {
-          setTimeout(() => {
-            this.emit(REACTOR_STEP_END_EVENT)
-            this.__lifeCycle__()
-          }, this.stepTimeout)
+        try {
+          await stepFunction()
+        } catch (error) {
+          this.emit(REACTOR_STEP_ERROR, error)
         }
+
+        await delay(this.stepTimeout)
+
+        this.emit(REACTOR_STEP_END_EVENT)
+
+        setImmediate(() => {
+          this[lifeCycleSymbol]()
+        })
 
         return
       }
@@ -177,30 +119,12 @@ class Reactor extends EventEmitter {
       case TASK_STOPING: {
         this.emit(TASK_CHANGE_STATUS_EVENT, TASK_STOPED)
 
-        break
+        return;
       }
 
       case TASK_STOPED:
         return;
     }
-
-    setTimeout(() => {
-      this.emit(REACTOR_STEP_END_EVENT)
-      this.__lifeCycle__()
-    }, this.stepTimeout)
-  }
-
-
-  /**
-   * @description
-   *
-   * @private
-   *
-   * @return {Promise}
-   */
-  __startLifeCycle() {
-    // Starting life cycle
-    return this.__lifeCycle__()
   }
 }
 
