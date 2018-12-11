@@ -1,0 +1,14 @@
+{
+  "name": "reactor-node",
+  "version": "0.0.7",
+  "description": "pattern reactor",
+  "main": "Reactor.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "V.Ruzanov <spb.web@bk.ru>",
+  "license": "ISC",
+  "dependencies": {
+    "delay": "^4.1.0"
+  }
+}
