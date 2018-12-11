@@ -1,6 +1,6 @@
 {
   "name": "reactor-node",
-  "version": "0.0.10",
+  "version": "0.0.11",
   "description": "pattern reactor",
   "main": "Reactor.js",
   "scripts": {
@@ -10,5 +10,19 @@
   "license": "ISC",
   "dependencies": {
     "delay": "^4.1.0"
-  }
+  },
+  "devDependencies": {},
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/spb-web/reactor-node.git"
+  },
+  "keywords": [
+    "reactor",
+    "queue",
+    "lifecycle"
+  ],
+  "bugs": {
+    "url": "https://github.com/spb-web/reactor-node/issues"
+  },
+  "homepage": "https://github.com/spb-web/reactor-node#readme"
 }
