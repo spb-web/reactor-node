@@ -38,7 +38,7 @@ class Reactor extends EventEmitter {
     /** @private {String} Статус таски */
     this[statusSymbol] = TASK_STOPED
 
-    this.on(TASK_CHANGE_STATUS_EVENT, () => {
+    this.on(TASK_CHANGE_STATUS_EVENT, status => {
       this[statusSymbol] = status
 
       if (this[statusSymbol] === TASK_STARTING) {
