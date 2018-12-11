@@ -42,9 +42,8 @@ class Reactor extends EventEmitter {
       this[statusSymbol] = status
 
       if (this[statusSymbol] === TASK_STARTING) {
-        this.emit(TASK_CHANGE_STATUS_EVENT, TASK_PROCESSING)
-
         setImmediate(() => {
+          this.emit(TASK_CHANGE_STATUS_EVENT, TASK_PROCESSING)
           this[lifeCycleSymbol]()
         })
       }
@@ -66,6 +65,56 @@ class Reactor extends EventEmitter {
     } else {
       throw new Error('Reactor.addStep: value is not a function')
     }
+  }
+
+  /**
+   * @description Stoping lifecycle
+   *
+   * @return {Promise}
+   */
+  reactorStop() {
+    return new Promise((resolve, reject) => {
+      if (this[statusSymbol] === TASK_STOPED) {
+        return resolve()
+      }
+
+      if (this[statusSymbol] !== TASK_STOPING) {
+        this.emit(TASK_CHANGE_STATUS_EVENT, TASK_STOPING)
+      }
+
+      this.once(TASK_CHANGE_STATUS_EVENT, status => {
+        if (status === TASK_STOPED) {
+          return resolve()
+        }
+
+        reject(new Error(`Can not stop reactor. Next status is ${status}`))
+      })
+    })
+  }
+
+  /**
+   * @description Starting lifecycle
+   *
+   * @return {Promise}
+   */
+  reactorStart() {
+    return new Promise((resolve, reject) => {
+      if (this[statusSymbol] === TASK_PROCESSING) {
+        return resolve()
+      }
+
+      if (this[statusSymbol] !== TASK_STARTING) {
+        this.emit(TASK_CHANGE_STATUS_EVENT, TASK_STARTING)
+      }
+
+      this.once(TASK_CHANGE_STATUS_EVENT, status => {
+        if (status === TASK_PROCESSING) {
+          return resolve()
+        }
+
+        reject(new Error(`Can not start reactor. Next status is ${status}`))
+      })
+    })
   }
 
   /**
