@@ -27,11 +27,6 @@ const lifeCycleSymbol = Symbol('reactorSteps')
  * @event REACTOR_STEP_END_EVENT
  * @event REACTOR_STEP_ERROR
  * @event TASK_ADDED_NEW_STEP_EVENT
- * @event TASK_PROCESSING
- * @event TASK_STARTING
- * @event TASK_STOPING
- * @event TASK_STOPED
- * @event error
  */
 class Reactor extends EventEmitter {
   constructor(options={}) {
@@ -43,14 +38,13 @@ class Reactor extends EventEmitter {
     /** @private {String} Статус таски */
     this[statusSymbol] = TASK_STOPED
 
-    this.on(TASK_CHANGE_STATUS_EVENT, status => {
-      this[statusSymbol] = status
-    })
-
     this.on(TASK_CHANGE_STATUS_EVENT, () => {
+      this[statusSymbol] = status
+
       if (this[statusSymbol] === TASK_STARTING) {
+        this.emit(TASK_CHANGE_STATUS_EVENT, TASK_PROCESSING)
+
         setImmediate(() => {
-          this.emit(TASK_CHANGE_STATUS_EVENT, TASK_PROCESSING)
           this[lifeCycleSymbol]()
         })
       }
@@ -68,10 +62,6 @@ class Reactor extends EventEmitter {
 
       if (this[statusSymbol] === TASK_STOPED) {
         this.emit(TASK_CHANGE_STATUS_EVENT, TASK_STARTING)
-
-        setImmediate(() => {
-          this[lifeCycleSymbol]()
-        })
       }
     } else {
       throw new Error('Reactor.addStep: value is not a function')
